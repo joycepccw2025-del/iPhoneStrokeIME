@@ -3,8 +3,10 @@
 #include "input_handler.h"
 #include "dictionary.h"
 #include <windows.h>
+#include <string>
 
-GlobalState g_state; // 全域定義
+// 定義全域變數
+GlobalState g_state;
 HHOOK g_hKeyboardHook = NULL;
 
 static void initDirectories(GlobalState& state) {
@@ -12,19 +14,22 @@ static void initDirectories(GlobalState& state) {
     GetModuleFileNameW(NULL, exePath, MAX_PATH);
     std::wstring exeDir = exePath;
     size_t lastSlash = exeDir.find_last_of(L"\\/");
-    if (lastSlash != std::wstring::npos) exeDir = exeDir.substr(0, lastSlash + 1);
-
-    state.systemDir = exeDir; 
-    state.userDir   = exeDir; 
+    if (lastSlash != std::wstring::npos) {
+        exeDir = exeDir.substr(0, lastSlash + 1);
+    }
+    state.systemDir = exeDir;
+    state.userDir = exeDir;
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
     initDirectories(g_state);
     Dictionary::loadMainDict(g_state);
     
+    // 註冊與建立視窗
     if (!WindowManager::registerOptimizedWindowClasses(hInstance)) return 0;
     if (!WindowManager::createOptimizedWindows(hInstance, g_state)) return 0;
 
+    // 安裝鉤子
     g_hKeyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, InputHandler::KeyboardHookProc, hInstance, 0);
 
     MSG msg;
