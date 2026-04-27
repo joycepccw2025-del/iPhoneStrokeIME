@@ -1,8 +1,7 @@
-# Makefile - 精簡離線版
 CXX = g++
 CXXFLAGS = -std=c++11 -Wall -O2 -mwindows -DUNICODE -D_UNICODE
 
-# 移除 dict_updater.cpp
+# 這裡必須列出你所有的 .cpp 檔案
 SRCS = main.cpp ime_core.cpp input_handler.cpp dictionary.cpp \
        buffer_manager.cpp window_manager.cpp config_loader.cpp \
        screen_manager.cpp position_manager.cpp tray_manager.cpp \
