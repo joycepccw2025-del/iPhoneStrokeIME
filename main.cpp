@@ -4,11 +4,22 @@
 #include "dictionary.h"
 #include <windows.h>
 
-GlobalState g_state;
+GlobalState g_state; // 全域定義
 HHOOK g_hKeyboardHook = NULL;
 
+static void initDirectories(GlobalState& state) {
+    wchar_t exePath[MAX_PATH];
+    GetModuleFileNameW(NULL, exePath, MAX_PATH);
+    std::wstring exeDir = exePath;
+    size_t lastSlash = exeDir.find_last_of(L"\\/");
+    if (lastSlash != std::wstring::npos) exeDir = exeDir.substr(0, lastSlash + 1);
+
+    state.systemDir = exeDir; 
+    state.userDir   = exeDir; 
+}
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
-    g_state.inputBuffer = L""; // 初始化
+    initDirectories(g_state);
     Dictionary::loadMainDict(g_state);
     
     if (!WindowManager::registerOptimizedWindowClasses(hInstance)) return 0;
