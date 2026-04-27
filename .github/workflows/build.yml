@@ -1,0 +1,70 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ "main" ]
+    tags:
+      - 'v* '
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: true
+        install: >-
+          mingw-w64-x86_64-gcc
+          mingw-w64-x86_64-make
+
+    - name: Build
+      shell: msys2 {0}
+      run: |
+        mingw32-make
+
+    # 修改：確保所有字典檔案都進入壓縮包
+    - name: Package Release
+      if: startsWith(github.ref, 'refs/tags/')
+      shell: pwsh
+      run: |
+        # 建立發布資料夾
+        New-Item -ItemType Directory -Path ChineseStrokeIME
+        
+        # 拷貝執行檔
+        Copy-Item ChineseStrokeIME.exe ChineseStrokeIME/
+        
+        # 拷貝同步 HTML 功能必備的字典檔
+        Copy-Item user_dict.txt ChineseStrokeIME/
+        Copy-Item Zi-Ma-Biao2.txt ChineseStrokeIME/
+        Copy-Item word_phrases.txt ChineseStrokeIME/
+        
+        # 建立系統與用戶目錄架構（選用）
+        New-Item -ItemType Directory -Path ChineseStrokeIME/system
+        New-Item -ItemType Directory -Path ChineseStrokeIME/user
+        
+        # 壓縮
+        Compress-Archive -Path ChineseStrokeIME -DestinationPath ChineseStrokeIME_Release.zip
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ChineseStrokeIME-Build
+        path: ChineseStrokeIME.exe
+
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ChineseStrokeIME_Release.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
