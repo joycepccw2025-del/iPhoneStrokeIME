@@ -4,10 +4,9 @@
 #include <sstream>
 #include <algorithm>
 
-// 載入主字典 (Zi-Ma-Biao2.txt)
+// 1. 載入主字典 (Zi-Ma-Biao2.txt)
 void Dictionary::loadMainDict(GlobalState& state) {
     state.dict.clear();
-    // 取得字典完整路徑
     std::wstring dictPath = state.systemDir + L"Zi-Ma-Biao2.txt";
     
     std::ifstream file(dictPath);
@@ -29,21 +28,20 @@ void Dictionary::loadMainDict(GlobalState& state) {
     Utils::updateStatus(state, L"字典載入成功");
 }
 
-// 更新候選字列表 (同步 HTML v23 邏輯)
+// 2. 更新候選字 (同步 HTML v23 容錯與核心字邏輯)
 void Dictionary::updateCandidates(GlobalState& state) {
     state.candidates.clear();
     if (state.inputBuffer.empty()) return;
 
-    // 1. 同步 HTML 的 484 -> 585 容錯邏輯
+    // --- 同步 HTML 的 484 -> 585 容錯邏輯 ---
     std::wstring searchCode = state.inputBuffer;
     if (searchCode == L"484") {
         searchCode = L"585";
     }
 
-    // 2. 核心優先字 (同步 HTML CORE_WORDS)
+    // --- 同步 HTML CORE_WORDS 優先權 ---
     std::vector<std::wstring> coreWords = { L"快", L"我", L"真", L"的", L"一", L"是", L"有", L"在", L"日", L"也", L"懂", L"忙" };
 
-    // 3. 搜尋匹配項
     struct Match {
         std::wstring word;
         std::wstring code;
@@ -52,8 +50,8 @@ void Dictionary::updateCandidates(GlobalState& state) {
     std::vector<Match> matches;
 
     for (const auto& item : state.dict) {
-        // HTML 邏輯：如果是 585，搜尋以 558 或 585 開頭的字
         bool isMatch = false;
+        // HTML 邏輯：484 模式下匹配 558 或 585 開頭
         if (state.inputBuffer == L"484") {
             if (item.code.find(L"558") == 0 || item.code.find(L"585") == 0) isMatch = true;
         } else {
@@ -72,7 +70,7 @@ void Dictionary::updateCandidates(GlobalState& state) {
         }
     }
 
-    // 4. 排序邏輯 (核心字優先 > 精確匹配優先)
+    // 排序：核心字 > 短編碼 (精確匹配)
     std::sort(matches.begin(), matches.end(), [&](const Match& a, const Match& b) {
         if (a.coreIndex != -1 && b.coreIndex != -1) return a.coreIndex < b.coreIndex;
         if (a.coreIndex != -1) return true;
@@ -80,24 +78,22 @@ void Dictionary::updateCandidates(GlobalState& state) {
         return a.code.length() < b.code.length();
     });
 
-    // 5. 寫入候選字 (去重)
     std::vector<std::wstring> seen;
     for (const auto& m : matches) {
         if (std::find(seen.begin(), seen.end(), m.word) == seen.end()) {
             state.candidates.push_back(m.word);
             seen.push_back(m.word);
-            if (state.candidates.size() >= 60) break; // 最多顯示 60 個
+            if (state.candidates.size() >= 60) break;
         }
     }
 }
 
-// 選擇候選字並上屏
+// 3. 選擇候選字 (模擬鍵盤輸出)
 void Dictionary::selectCandidate(GlobalState& state, int index) {
     if (index < 0 || index >= (int)state.candidates.size()) return;
 
     std::wstring selected = state.candidates[index];
     
-    // 模擬鍵盤輸入到當前視窗
     for (wchar_t c : selected) {
         INPUT input = { 0 };
         input.type = INPUT_KEYBOARD;
@@ -109,19 +105,20 @@ void Dictionary::selectCandidate(GlobalState& state, int index) {
         SendInput(1, &input, sizeof(INPUT));
     }
 
-    // 清空緩衝區
     state.inputBuffer.clear();
     state.candidates.clear();
-    
-    // 選字後可以觸發聯想詞 (選配功能)
-    // loadPhrases(state, selected); 
+    // 可在此觸發 loadPhrases(state, selected);
 }
 
-// 載入聯想詞 (word_phrases.txt)
+// 4. 聯想詞與用戶詞庫實作 (與 .h 保持同步)
 void Dictionary::loadPhrases(GlobalState& state, const std::wstring& lastChar) {
     state.candidates.clear();
-    // 這裡可以實作讀取 word_phrases.txt 的邏輯
 }
 
-void Dictionary::loadUserDict(GlobalState& state) {}
-void Dictionary::saveUserDict(GlobalState& state) {}
+void Dictionary::loadUserDict(GlobalState& state) {
+    // 預留位置
+}
+
+void Dictionary::saveUserDict(GlobalState& state) {
+    // 預留位置
+}
