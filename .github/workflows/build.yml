@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "main" ]
     tags:
-      - 'v* '
+      - 'v*' # 當您推送以 v 開頭的標籤（如 v1.0.0）時會觸發 Release 打包
   pull_request:
     branches: [ "main" ]
 
@@ -18,6 +18,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    # 1. 設定 MSYS2 編譯環境
     - name: Setup MSYS2
       uses: msys2/setup-msys2@v2
       with:
@@ -27,40 +28,44 @@ jobs:
           mingw-w64-x86_64-gcc
           mingw-w64-x86_64-make
 
+    # 2. 執行編譯 (讀取您的 Makefile)
     - name: Build
       shell: msys2 {0}
       run: |
         mingw32-make
 
-    # 修改：確保所有字典檔案都進入壓縮包
+    # 3. 打包 Release (僅在有標籤推播時執行)
     - name: Package Release
       if: startsWith(github.ref, 'refs/tags/')
       shell: pwsh
       run: |
-        # 建立發布資料夾
+        # 建立臨時資料夾
         New-Item -ItemType Directory -Path ChineseStrokeIME
         
         # 拷貝執行檔
-        Copy-Item ChineseStrokeIME.exe ChineseStrokeIME/
+        if (Test-Path "ChineseStrokeIME.exe") {
+            Copy-Item ChineseStrokeIME.exe ChineseStrokeIME/
+        } else {
+            Write-Error "找不到 ChineseStrokeIME.exe，請檢查 Makefile 的 TARGET 名稱"
+        }
         
-        # 拷貝同步 HTML 功能必備的字典檔
+        # 拷貝同步 HTML 版功能必備的檔案
+        # 確保這些檔案在您的 GitHub 根目錄中
         Copy-Item user_dict.txt ChineseStrokeIME/
         Copy-Item Zi-Ma-Biao2.txt ChineseStrokeIME/
         Copy-Item word_phrases.txt ChineseStrokeIME/
         
-        # 建立系統與用戶目錄架構（選用）
-        New-Item -ItemType Directory -Path ChineseStrokeIME/system
-        New-Item -ItemType Directory -Path ChineseStrokeIME/user
-        
-        # 壓縮
+        # 建立壓縮檔
         Compress-Archive -Path ChineseStrokeIME -DestinationPath ChineseStrokeIME_Release.zip
 
+    # 4. 上傳編譯產物 (供每次 Push 檢查用)
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: ChineseStrokeIME-Build
         path: ChineseStrokeIME.exe
 
+    # 5. 自動建立 GitHub Release 頁面並上傳 Zip
     - name: Create Release
       if: startsWith(github.ref, 'refs/tags/')
       uses: softprops/action-gh-release@v1
