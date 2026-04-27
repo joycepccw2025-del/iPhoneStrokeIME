@@ -14,8 +14,8 @@ struct UserDictEntry {
 
 struct GlobalState {
     HWND hWnd;
-    std::wstring inputBuffer;   // 輸入碼緩衝
-    std::wstring statusInfo;    // 狀態列訊息 (修正 image_f2f6fd.png 的錯誤)
+    std::wstring inputBuffer;   // 輸入緩衝
+    std::wstring statusInfo;    // 狀態訊息
     std::vector<std::wstring> candidates;
     std::vector<std::wstring> phrases;
     std::map<std::wstring, UserDictEntry> userDict;
