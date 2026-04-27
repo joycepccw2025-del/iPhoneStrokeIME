@@ -14,7 +14,8 @@ struct UserDictEntry {
 
 struct GlobalState {
     HWND hWnd;
-    std::wstring inputBuffer; // 確保名稱為 inputBuffer
+    std::wstring inputBuffer;   // 輸入碼緩衝
+    std::wstring statusInfo;    // 狀態列訊息 (修正 image_f2f6fd.png 的錯誤)
     std::vector<std::wstring> candidates;
     std::vector<std::wstring> phrases;
     std::map<std::wstring, UserDictEntry> userDict;
@@ -27,5 +28,11 @@ struct GlobalState {
     int totalPages = 0;
     bool enableWordPrediction = true;
 };
+
+namespace Utils {
+    void updateStatus(GlobalState& state, const std::wstring& msg);
+    std::wstring utf8ToWstr(const std::string& str);
+    std::string wstrToUtf8(const std::wstring& wstr);
+}
 
 #endif
