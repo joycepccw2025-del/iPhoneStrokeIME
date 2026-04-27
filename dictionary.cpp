@@ -9,7 +9,9 @@ void Dictionary::loadMainDict(GlobalState& state) {
     state.dict.clear();
     std::wstring dictPath = state.systemDir + L"Zi-Ma-Biao2.txt";
     
-    std::ifstream file(dictPath);
+    // 關鍵修正：MinGW 的 ifstream 不接受 wstring，必須轉為 UTF-8 string
+    std::ifstream file(Utils::wstrToUtf8(dictPath)); 
+    
     if (!file.is_open()) {
         Utils::updateStatus(state, L"找不到字典檔 Zi-Ma-Biao2.txt");
         return;
@@ -107,18 +109,12 @@ void Dictionary::selectCandidate(GlobalState& state, int index) {
 
     state.inputBuffer.clear();
     state.candidates.clear();
-    // 可在此觸發 loadPhrases(state, selected);
 }
 
-// 4. 聯想詞與用戶詞庫實作 (與 .h 保持同步)
+// 4. 其他預留函數
 void Dictionary::loadPhrases(GlobalState& state, const std::wstring& lastChar) {
     state.candidates.clear();
 }
 
-void Dictionary::loadUserDict(GlobalState& state) {
-    // 預留位置
-}
-
-void Dictionary::saveUserDict(GlobalState& state) {
-    // 預留位置
-}
+void Dictionary::loadUserDict(GlobalState& state) {}
+void Dictionary::saveUserDict(GlobalState& state) {}
