@@ -1,106 +1,127 @@
-// dictionary.cpp - 核心字典與排序邏輯 (同步 HTML v23 功能)
 #include "dictionary.h"
 #include "ime_core.h"
-#include "window_manager.h"
-#include "buffer_manager.h"
-#include "input_handler.h"
 #include <fstream>
 #include <sstream>
 #include <algorithm>
-#include <vector>
 
-namespace Dictionary {
-
-// 載入主碼表 (Zi-Ma-Biao2.txt)
-void loadMainDict(GlobalState& state) {
+// 載入主字典 (Zi-Ma-Biao2.txt)
+void Dictionary::loadMainDict(GlobalState& state) {
     state.dict.clear();
+    // 取得字典完整路徑
     std::wstring dictPath = state.systemDir + L"Zi-Ma-Biao2.txt";
-    std::ifstream file(Utils::wstrToUtf8(dictPath));
     
+    std::ifstream file(dictPath);
     if (!file.is_open()) {
-        Utils::updateStatus(state, L"錯誤：找不到 Zi-Ma-Biao2.txt");
+        Utils::updateStatus(state, L"找不到字典檔 Zi-Ma-Biao2.txt");
         return;
     }
 
     std::string line;
     while (std::getline(file, line)) {
-        if (line.empty() || line[0] == '#') continue;
+        if (line.empty()) continue;
         std::stringstream ss(line);
         std::string word, code;
         if (ss >> word >> code) {
-            state.dict.push_back({Utils::utf8ToWstr(word), Utils::utf8ToWstr(code)});
+            state.dict.push_back({ Utils::utf8ToWstr(word), Utils::utf8ToWstr(code) });
         }
     }
     file.close();
+    Utils::updateStatus(state, L"字典載入成功");
 }
 
-// 核心搜尋邏輯 (含 484 容錯)
-void updateCandidates(GlobalState& state) {
+// 更新候選字列表 (同步 HTML v23 邏輯)
+void Dictionary::updateCandidates(GlobalState& state) {
     state.candidates.clear();
-    state.candidateCodes.clear();
     if (state.inputBuffer.empty()) return;
 
+    // 1. 同步 HTML 的 484 -> 585 容錯邏輯
     std::wstring searchCode = state.inputBuffer;
-
-    // --- 同步 HTML v23: 484 容錯處理 ---
-    // 在 HTML 版中，484 是為了方便輸入「忄」部首 (實際碼為 585)
     if (searchCode == L"484") {
-        searchCode = L"585"; 
+        searchCode = L"585";
     }
 
-    // 前綴匹配搜尋
+    // 2. 核心優先字 (同步 HTML CORE_WORDS)
+    std::vector<std::wstring> coreWords = { L"快", L"我", L"真", L"的", L"一", L"是", L"有", L"在", L"日", L"也", L"懂", L"忙" };
+
+    // 3. 搜尋匹配項
+    struct Match {
+        std::wstring word;
+        std::wstring code;
+        int coreIndex;
+    };
+    std::vector<Match> matches;
+
     for (const auto& item : state.dict) {
-        if (item.code.find(searchCode) == 0) {
-            // 避免重複
-            if (std::find(state.candidates.begin(), state.candidates.end(), item.word) == state.candidates.end()) {
-                state.candidates.push_back(item.word);
+        // HTML 邏輯：如果是 585，搜尋以 558 或 585 開頭的字
+        bool isMatch = false;
+        if (state.inputBuffer == L"484") {
+            if (item.code.find(L"558") == 0 || item.code.find(L"585") == 0) isMatch = true;
+        } else {
+            if (item.code.find(searchCode) == 0) isMatch = true;
+        }
+
+        if (isMatch) {
+            int cIdx = -1;
+            for (int i = 0; i < (int)coreWords.size(); ++i) {
+                if (coreWords[i] == item.word) {
+                    cIdx = i;
+                    break;
+                }
             }
+            matches.push_back({ item.word, item.code, cIdx });
         }
     }
 
-    // 智能排序
-    sortCandidatesBySmartScore(state);
-    
-    state.totalPages = (state.candidates.size() + CANDIDATES_PER_PAGE - 1) / CANDIDATES_PER_PAGE;
-    state.currentPage = 0;
-}
+    // 4. 排序邏輯 (核心字優先 > 精確匹配優先)
+    std::sort(matches.begin(), matches.end(), [&](const Match& a, const Match& b) {
+        if (a.coreIndex != -1 && b.coreIndex != -1) return a.coreIndex < b.coreIndex;
+        if (a.coreIndex != -1) return true;
+        if (b.coreIndex != -1) return false;
+        return a.code.length() < b.code.length();
+    });
 
-// 智能排序：優先參考 user_dict.txt 的頻率
-void sortCandidatesBySmartScore(GlobalState& state) {
-    if (state.candidates.empty()) return;
-
-    std::sort(state.candidates.begin(), state.candidates.end(), 
-        [&](const std::wstring& a, const std::wstring& b) {
-            int freqA = state.userDict.count(a) ? state.userDict.at(a).frequency : 0;
-            int freqB = state.userDict.count(b) ? state.userDict.at(b).frequency : 0;
-
-            if (freqA != freqB) return freqA > freqB;
-            return a.length() < b.length(); // 頻率相同時，短字優先
+    // 5. 寫入候選字 (去重)
+    std::vector<std::wstring> seen;
+    for (const auto& m : matches) {
+        if (std::find(seen.begin(), seen.end(), m.word) == seen.end()) {
+            state.candidates.push_back(m.word);
+            seen.push_back(m.word);
+            if (state.candidates.size() >= 60) break; // 最多顯示 60 個
         }
-    );
+    }
 }
 
-// 聯想字功能 (從 word_phrases.txt 讀取)
-void showPredictions(GlobalState& state, const std::wstring& lastWord) {
+// 選擇候選字並上屏
+void Dictionary::selectCandidate(GlobalState& state, int index) {
+    if (index < 0 || index >= (int)state.candidates.size()) return;
+
+    std::wstring selected = state.candidates[index];
+    
+    // 模擬鍵盤輸入到當前視窗
+    for (wchar_t c : selected) {
+        INPUT input = { 0 };
+        input.type = INPUT_KEYBOARD;
+        input.ki.wScan = c;
+        input.ki.dwFlags = KEYEVENTF_UNICODE;
+        SendInput(1, &input, sizeof(INPUT));
+        
+        input.ki.dwFlags |= KEYEVENTF_KEYUP;
+        SendInput(1, &input, sizeof(INPUT));
+    }
+
+    // 清空緩衝區
+    state.inputBuffer.clear();
     state.candidates.clear();
-    if (!state.enableWordPrediction) return;
-
-    // 搜尋以 lastWord 開頭的詞組
-    // 假設 state.phrases 已經在啟動時加載了 word_phrases.txt
-    for (const auto& phrase : state.phrases) {
-        if (phrase.find(lastWord) == 0 && phrase != lastWord) {
-            state.candidates.push_back(phrase.substr(lastWord.length()));
-        }
-    }
     
-    if (!state.candidates.empty()) {
-        WindowManager::switchMode(state, InputMode::PRED_MODE);
-    }
+    // 選字後可以觸發聯想詞 (選配功能)
+    // loadPhrases(state, selected); 
 }
 
-// 離線版字典更新 (不執行動作)
-bool updateDictFromGitHub(GlobalState& state, bool showProgress) {
-    return false; 
+// 載入聯想詞 (word_phrases.txt)
+void Dictionary::loadPhrases(GlobalState& state, const std::wstring& lastChar) {
+    state.candidates.clear();
+    // 這裡可以實作讀取 word_phrases.txt 的邏輯
 }
 
-} // namespace Dictionary
+void Dictionary::loadUserDict(GlobalState& state) {}
+void Dictionary::saveUserDict(GlobalState& state) {}
