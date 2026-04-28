@@ -7,8 +7,7 @@
 void Dictionary::loadMainDict(GlobalState& state) {
     state.dict.clear();
     std::wstring path = state.systemDir + L"Zi-Ma-Biao2.txt";
-    std::ifstream file(Utils::wstrToUtf8(path)); // 修正 wstring 路徑問題
-    
+    std::ifstream file(Utils::wstrToUtf8(path));
     std::string line;
     while (std::getline(file, line)) {
         std::stringstream ss(line);
@@ -17,7 +16,6 @@ void Dictionary::loadMainDict(GlobalState& state) {
             state.dict.push_back({Utils::utf8ToWstr(word), Utils::utf8ToWstr(code)});
         }
     }
-    Utils::updateStatus(state, L"字典已就緒");
 }
 
 void Dictionary::updateCandidates(GlobalState& state) {
