@@ -2,42 +2,28 @@
 #include "window_manager.h"
 #include "input_handler.h"
 #include "dictionary.h"
-#include <windows.h>
-#include <string>
 
-// 定義全域變數
 GlobalState g_state;
 HHOOK g_hKeyboardHook = NULL;
 
-static void initDirectories(GlobalState& state) {
-    wchar_t exePath[MAX_PATH];
-    GetModuleFileNameW(NULL, exePath, MAX_PATH);
-    std::wstring exeDir = exePath;
-    size_t lastSlash = exeDir.find_last_of(L"\\/");
-    if (lastSlash != std::wstring::npos) {
-        exeDir = exeDir.substr(0, lastSlash + 1);
-    }
-    state.systemDir = exeDir;
-    state.userDir = exeDir;
-}
-
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nShowCmd) {
-    initDirectories(g_state);
-    Dictionary::loadMainDict(g_state);
+int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmd, int nShow) {
+    g_state.hInstance = hInst;
     
-    // 註冊與建立視窗
-    if (!WindowManager::registerOptimizedWindowClasses(hInstance)) return 0;
-    if (!WindowManager::createOptimizedWindows(hInstance, g_state)) return 0;
+    wchar_t path[MAX_PATH];
+    GetModuleFileNameW(NULL, path, MAX_PATH);
+    std::wstring dir = path;
+    g_state.systemDir = dir.substr(0, dir.find_last_of(L"\\/") + 1);
 
-    // 安裝鉤子
-    g_hKeyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, InputHandler::KeyboardHookProc, hInstance, 0);
+    Dictionary::loadMainDict(g_state);
+    WindowManager::registerOptimizedWindowClasses(hInst);
+    WindowManager::createOptimizedWindows(hInst, g_state);
+
+    g_hKeyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, InputHandler::KeyboardHookProc, hInst, 0);
 
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0)) {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
-
-    if (g_hKeyboardHook) UnhookWindowsHookEx(g_hKeyboardHook);
     return 0;
 }
