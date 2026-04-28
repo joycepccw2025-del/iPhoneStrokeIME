@@ -21,24 +21,33 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
             // 2. 設定字體與顏色
             SetBkMode(hdc, TRANSPARENT);
-            SetTextColor(hdc, RGB(0, 0, 0));
-
+            
             // 3. 繪製目前的輸入碼 (例如: 編碼: 789)
+            SetTextColor(hdc, RGB(0, 0, 0)); // 黑色字
             std::wstring inputDisp = L"編碼: " + g_state.inputBuffer;
             TextOutW(hdc, 10, 10, inputDisp.c_str(), (int)inputDisp.length());
 
             // 4. 繪製候選字清單
             if (g_state.candidates.empty()) {
                 if (!g_state.inputBuffer.empty()) {
+                    SetTextColor(hdc, RGB(128, 128, 128)); // 灰色字
                     TextOutW(hdc, 10, 40, L"無匹配字詞", 5);
                 }
             } else {
+                SetTextColor(hdc, RGB(0, 0, 0));
                 int y = 40;
                 for (size_t i = 0; i < g_state.candidates.size() && i < 10; ++i) {
                     std::wstring cand = std::to_wstring(i + 1) + L"." + g_state.candidates[i];
                     TextOutW(hdc, 10, y, cand.c_str(), (int)cand.length());
                     y += 25; // 每一行間隔 25 像素
                 }
+            }
+
+            // 5. 新增：繪製狀態資訊 (顯示字典載入狀態)
+            // 這會顯示在視窗最下方
+            if (!g_state.statusInfo.empty()) {
+                SetTextColor(hdc, RGB(0, 128, 0)); // 綠色字
+                TextOutW(hdc, 10, 360, g_state.statusInfo.c_str(), (int)g_state.statusInfo.length());
             }
 
             EndPaint(hWnd, &ps);
@@ -57,19 +66,20 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmd, int nShow) {
     g_state.hInstance = hInst;
 
-    // 1. 初始化路徑與載入字典
+    // 1. 初始化路徑
     wchar_t p[MAX_PATH];
     GetModuleFileNameW(NULL, p, MAX_PATH);
     std::wstring d = p;
     g_state.systemDir = d.substr(0, d.find_last_of(L"\\/") + 1);
     
+    // 2. 載入字典 (這會更新 g_state.statusInfo)
     Dictionary::loadMainDict(g_state);
 
-    // 2. 註冊視窗類別
+    // 3. 註冊視窗類別
     WNDCLASSEXW wc = {0};
     wc.cbSize = sizeof(WNDCLASSEXW);
     wc.style = CS_HREDRAW | CS_VREDRAW;
-    wc.lpfnWndProc = WndProc; // 關鍵：指向上面定義的 WndProc
+    wc.lpfnWndProc = WndProc;
     wc.hInstance = hInst;
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     wc.lpszClassName = L"StrokeIME_Window";
@@ -80,7 +90,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmd, int nShow) {
         return 0;
     }
 
-    // 3. 建立視窗 (初始位置 100, 100, 寬 300, 高 400)
+    // 4. 建立視窗
     g_state.hWnd = CreateWindowExW(
         WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE,
         L"StrokeIME_Window", L"Stroke IME",
@@ -94,21 +104,21 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrev, LPSTR lpCmd, int nShow) {
         return 0;
     }
 
-    // 4. 顯示視窗
+    // 5. 顯示視窗
     ShowWindow(g_state.hWnd, SW_SHOW);
     UpdateWindow(g_state.hWnd);
 
-    // 5. 安裝鍵盤鉤子
+    // 6. 安裝鍵盤鉤子
     g_hHook = SetWindowsHookEx(WH_KEYBOARD_LL, InputHandler::KeyboardHookProc, hInst, 0);
 
-    // 6. 訊息循環
+    // 7. 訊息循環
     MSG msg;
     while (GetMessage(&msg, NULL, 0, 0)) {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
 
-    // 7. 解除鉤子
+    // 8. 解除鉤子
     if (g_hHook) UnhookWindowsHookEx(g_hHook);
 
     return (int)msg.wParam;
