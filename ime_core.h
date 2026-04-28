@@ -6,7 +6,7 @@
 #include <vector>
 #include <map>
 
-// UI 佈局常數 - 解決 buffer_manager.cpp 報錯
+// UI 佈局常數 - 解決所有編譯器找不到常數的錯誤
 const int FIXED_WIDTH = 400;
 const int MIN_HEIGHT = 100;
 const int MAX_HEIGHT = 600;
@@ -14,42 +14,27 @@ const int CONTROL_BAR_HEIGHT = 40;
 const int LINE_HEIGHT = 25;
 const int CHARS_PER_LINE = 20;
 
-enum class InputMode { IDLE, SYMBOL_MODE, PRED_MODE };
-
 struct DictEntry {
     std::wstring word;
     std::wstring code;
 };
 
-struct UserDictEntry {
-    int frequency;
-};
-
 struct GlobalState {
     HINSTANCE hInstance;
-    HWND hWnd;              // 主視窗
-    HWND hBufferWnd;        // 暫放區視窗
+    HWND hWnd;
+    HWND hBufferWnd;
     
-    std::wstring inputBuffer;   
+    std::wstring inputBuffer;
     std::vector<std::wstring> candidates;
-    std::vector<std::wstring> phrases;
     std::vector<DictEntry> dict;
-    std::map<std::wstring, UserDictEntry> userDict;
     
-    // 暫放區狀態
     std::wstring bufferText;
     int bufferCursorPos = 0;
     bool bufferMode = false;
     bool bufferHasFocus = false;
-    bool useOptimizedUI = true;
 
     std::wstring systemDir;
-    std::wstring userDir;
-    std::wstring statusInfo; 
-    
-    int currentPage = 0;
-    int totalPages = 0;
-    bool enableWordPrediction = true;
+    std::wstring statusInfo;
 };
 
 namespace Utils {
