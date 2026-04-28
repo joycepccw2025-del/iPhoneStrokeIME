@@ -6,7 +6,7 @@
 #include <vector>
 #include <map>
 
-// --- UI 佈局常數 (解決 window_manager 與 buffer_manager 報錯) ---
+// UI 佈局常數
 const int FIXED_WIDTH = 400;
 const int MIN_HEIGHT = 100;
 const int MAX_HEIGHT = 600;
@@ -33,7 +33,7 @@ struct GlobalState {
     bool bufferMode = false;
     
     std::wstring systemDir;
-    std::wstring statusInfo; 
+    std::wstring statusInfo; // 修正：確保這個成員存在
 };
 
 namespace Utils {
