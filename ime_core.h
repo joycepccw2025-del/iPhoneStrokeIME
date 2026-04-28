@@ -6,7 +6,7 @@
 #include <vector>
 #include <map>
 
-// UI 佈局常數 - 解決所有編譯器找不到常數的錯誤
+// --- UI 佈局常數 (解決 window_manager 與 buffer_manager 報錯) ---
 const int FIXED_WIDTH = 400;
 const int MIN_HEIGHT = 100;
 const int MAX_HEIGHT = 600;
@@ -21,20 +21,19 @@ struct DictEntry {
 
 struct GlobalState {
     HINSTANCE hInstance;
-    HWND hWnd;
-    HWND hBufferWnd;
+    HWND hWnd;              // 主視窗
+    HWND hBufferWnd;        // 暫放區視窗
     
-    std::wstring inputBuffer;
+    std::wstring inputBuffer;   
     std::vector<std::wstring> candidates;
     std::vector<DictEntry> dict;
     
     std::wstring bufferText;
     int bufferCursorPos = 0;
     bool bufferMode = false;
-    bool bufferHasFocus = false;
-
+    
     std::wstring systemDir;
-    std::wstring statusInfo;
+    std::wstring statusInfo; 
 };
 
 namespace Utils {
