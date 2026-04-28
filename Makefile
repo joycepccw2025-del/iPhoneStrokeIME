@@ -1,24 +1,19 @@
 CXX = g++
 CXXFLAGS = -std=c++11 -Wall -O2 -mwindows -DUNICODE -D_UNICODE
+LDFLAGS = -static -static-libgcc -static-libstdc++ -lgdi32 -luser32 -lkernel32 -lcomctl32
 
-# 這裡必須列出你所有的 .cpp 檔案
 SRCS = main.cpp ime_core.cpp input_handler.cpp dictionary.cpp \
-       buffer_manager.cpp window_manager.cpp config_loader.cpp \
-       screen_manager.cpp position_manager.cpp tray_manager.cpp \
-       ime_manager.cpp
-
+       buffer_manager.cpp window_manager.cpp
 OBJS = $(SRCS:.cpp=.o)
 TARGET = ChineseStrokeIME.exe
 
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJS) -static -static-libgcc -static-libstdc++ \
-	-lgdi32 -luser32 -lkernel32 -lshell32 -lcomctl32 -limm32 -lcrypt32
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
 %.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	@if exist *.o del /F /Q *.o 2>nul
-	@if exist $(TARGET) del /F /Q $(TARGET) 2>nul
+	del /f /q *.o $(TARGET)
