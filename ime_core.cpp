@@ -1,6 +1,6 @@
 #include "ime_core.h"
 
-// 關鍵：在此處真正定義全域變數，解決 undefined reference
+// 關鍵：在這裡定義全域變數，分配記憶體空間
 GlobalState g_state; 
 
 namespace Utils {
